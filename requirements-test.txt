@@ -1,0 +1,6 @@
+# Lightweight packages for running the API tests and the local demo (no TensorFlow).
+# Versions are pinned so everyone gets the same, known-good setup.
+# opencv must stay below 5: OpenCV 5 removed CascadeClassifier (the face detector we use).
+Flask==3.0.3
+numpy==1.26.4
+opencv-python-headless==4.10.0.84

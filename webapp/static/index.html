@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Attendance · Face Recognition</title>
+  <meta name="description" content="Face-recognition attendance web app: FaceNet embeddings, Flask REST API, SQLite, browser webcam.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f766e'/><path d='M9 16.5l4.5 4.5L23 11.5' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8"/><path d="M9 16.5l4.5 4.5L23 11.5"/></svg></span>
+      <div>
+        <h1 class="brand-name">Smart Attendance</h1>
+        <div class="brand-sub">Face recognition with FaceNet · Flask · SQLite</div>
+      </div>
+    </div>
+    <div class="status loading" id="modelStatus"><span class="dot"></span><span class="label">Connecting…</span></div>
+  </header>
+
+  <main>
+    <p class="intro">
+      <strong>Try it:</strong> enroll your face, then press <em>Take attendance</em> and you'll appear in the register below.
+      Photos are never stored, only a 128-number face embedding, and visitor data is cleared automatically after <span id="retention">24</span> hours.
+    </p>
+
+    <div class="grid">
+      <!-- ============ Camera + take attendance -->
+      <section class="card" aria-labelledby="h-cam">
+        <div class="card-head"><h2 id="h-cam"><span class="num">1</span>Camera</h2><span class="hint" id="camHint">Your camera stays in your browser until you press a button.</span></div>
+        <div class="cam" id="cam">
+          <video playsinline muted></video>
+          <canvas class="overlay"></canvas>
+          <div class="cam-empty">
+            <p>Camera is off</p>
+            <button class="primary" id="camStart">Start camera</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary big" id="scanBtn" disabled>Take attendance</button>
+        </div>
+        <ul class="results" id="results" aria-live="polite"></ul>
+      </section>
+
+      <!-- ============ Enroll -->
+      <section class="card" aria-labelledby="h-enroll">
+        <div class="card-head"><h2 id="h-enroll"><span class="num">2</span>Enroll a face</h2></div>
+        <form id="enrollForm" autocomplete="off" class="form">
+          <label>Name<input name="name" id="nameInput" required minlength="2" maxlength="60" placeholder="e.g. Isha Patil"></label>
+          <button class="primary" type="submit" id="enrollBtn" disabled>Capture from webcam &amp; enroll</button>
+          <div class="or"><span>or</span></div>
+          <label class="file">
+            <input type="file" id="fileInput" accept="image/*">
+            <span class="button secondary" id="fileBtn">Upload a photo instead</span>
+          </label>
+          <div class="thumbs" id="thumbs"></div>
+          <p class="form-msg" id="enrollMsg" role="status"></p>
+        </form>
+        <details class="how">
+          <summary>What happens when you enroll?</summary>
+          <ol>
+            <li>Your browser takes 3 snapshots and sends them to the Flask API.</li>
+            <li>OpenCV finds your face and FaceNet turns each crop into a 128-d vector.</li>
+            <li>Only the vectors are saved to SQLite. The images are discarded.</li>
+            <li>Recognition compares a new frame's vector with every stored one (cosine similarity).</li>
+          </ol>
+        </details>
+      </section>
+    </div>
+
+    <!-- ============ Attendance table -->
+    <section class="card" aria-labelledby="h-att">
+      <div class="card-head wrap">
+        <h2 id="h-att"><span class="num">3</span>Attendance register</h2>
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Filter">
+            <button data-filter="today" class="on">Today</button>
+            <button data-filter="all">All</button>
+          </div>
+          <a class="button secondary" id="exportBtn" href="/api/attendance/export?date=today" download>Export CSV</a>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Date</th><th>Time</th><th>Confidence</th><th></th></tr></thead>
+          <tbody id="rows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Built by Isha Patil · Python, Flask, TensorFlow FaceNet, OpenCV, SQLite, Docker</span>
+    <span id="perf"></span>
+    <a href="https://github.com/ishapatil202/Smart-Attendance-System" target="_blank" rel="noopener">Source on GitHub</a>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

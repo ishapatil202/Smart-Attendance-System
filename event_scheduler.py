@@ -4,9 +4,18 @@ from datetime import datetime
 import smtplib
 from mark_attendance import Mark_Attendance
 from email.message import EmailMessage
+from config import ATTENDANCE_DETAILS_DIR, DATABASE_CONFIG, EMAIL_CONFIG
+
+
+def get_db_connection():
+    return pymysql.connect(**DATABASE_CONFIG)
+
+
+def email_is_configured():
+    return all(EMAIL_CONFIG[key] for key in ("username", "password", "sender"))
 
 def getall_staffs():
-    conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("select eid,email_address from attendance")
     data = cur.fetchall()
@@ -26,7 +35,7 @@ def registered_vs_absent_staffs(all_staffs):
     time_minute = time.split(':')[1]
     start_hour = 1
     end_hour = 11
-    conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("select id,time from report where date=%s ",(date))
     output = cur.fetchall()
@@ -58,7 +67,7 @@ def absent_emails():
 
 def get_manager_email():
     department = "Faculty"
-    conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("select email_address from attendance where department=%s ",(department))
     data = cur.fetchall()
@@ -70,9 +79,9 @@ def get_manager_email():
 def generate_attendance_sheet():
     dt = datetime.now()
     date = str(dt).split(' ')[0]
-    csv_name = 'Attendance_Details/attendance_{}.csv'.format(date)
+    csv_name = str(ATTENDANCE_DETAILS_DIR / 'attendance_{}.csv'.format(date))
     mark_attendance_obj = Mark_Attendance(csv_filename=csv_name)
-    conn = pymysql.connect(host = 'localhost', user = 'root', password ='', database = 'recognition')
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('select * from report where date = %s ', (date))
     mydata = cur.fetchall()
@@ -97,7 +106,7 @@ def send_mail():
     time = str(dt).split(' ')[1]
     for id in absent_staff_ids:
         status = "Absent"
-        conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+        conn = get_db_connection()
         cur1 = conn.cursor()
         cur1.execute("select fname from attendance where eid=%s ",id)
         output = cur1.fetchone()
@@ -112,11 +121,11 @@ def send_mail():
         conn.close()
         print("Attendance for absent students has been recorded successfully")
 
-    server = smtplib.SMTP('smtp.gmail.com',587)
+    server = smtplib.SMTP(EMAIL_CONFIG['host'], EMAIL_CONFIG['port'])
     server.starttls()
-    server.login('put a gmail address here','Put a password here')
+    server.login(EMAIL_CONFIG['username'], EMAIL_CONFIG['password'])
     for email in absent_staff_emails:
-        server.sendmail('put a gmail address here',
+        server.sendmail(EMAIL_CONFIG['sender'],
                     email,
                     'We regret to inform you that. Your son/daughter was absent today.')
 
@@ -125,7 +134,7 @@ def send_mail():
     manager_email = get_manager_email()
     msg = EmailMessage()
     msg['Subject'] = 'Attendance Details'
-    msg['From'] = 'put a gmail address here'
+    msg['From'] = EMAIL_CONFIG['sender']
     msg['To'] = manager_email
     msg.set_content('Attendance Report Attached')
 
@@ -138,15 +147,18 @@ def send_mail():
 
     msg.add_attachment(file_data,maintype='file',subtype=file_type,filename=file_name)
 
-    with smtplib.SMTP_SSL('smtp.gmail.com',587) as smtp:
-        smtp.login('put a gmail address here','Put a password here')
+    with smtplib.SMTP(EMAIL_CONFIG['host'], EMAIL_CONFIG['port']) as smtp:
+        smtp.starttls()
+        smtp.login(EMAIL_CONFIG['username'], EMAIL_CONFIG['password'])
         smtp.send_message(msg)
 
     print("Report sent successfully")
 
 
-sched = BackgroundScheduler(daemon=True)
-sched.add_job(send_mail,'cron',day_of_week='mon-sun', hour=21, minute=30)
-sched.start()
-
-
+if email_is_configured():
+    sched = BackgroundScheduler(daemon=True)
+    sched.add_job(send_mail, 'cron', day_of_week='mon-sun', hour=21, minute=30)
+    sched.start()
+else:
+    sched = None
+    print("Absence-email scheduler disabled: configure SMTP values in .env to enable it.")

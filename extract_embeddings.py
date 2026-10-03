@@ -1,22 +1,24 @@
 import cv2
 import os
 import numpy as np
-from tensorflow.keras.models import load_model
 import pickle
+from config import DATASET_DIR
+from face_preprocessing import preprocess_face
+from model_loader import load_facenet_model, predict_embedding
 
-
-rootdir = os.getcwd()
 
 class Extract_Embeddings():
 
 	def __init__(self,model_path):
 		self.model_path = model_path		
-		self.dataset_dir = os.path.join(rootdir,'dataset')
+		self.dataset_dir = str(DATASET_DIR)
 
 
 	def load_model(self):
-		model = load_model(self.model_path)
-		return model
+		return load_facenet_model(self.model_path)
+
+	def get_embedding(self, model, preprocessed_face):
+		return predict_embedding(model, preprocessed_face)
 
 	def check_pretrained_file(self,embeddings_model):
 		self.embeddings_model = embeddings_model
@@ -81,12 +83,13 @@ class Extract_Embeddings():
 			return None
 
 	def normalize_pixels(self,imagearrays):
-		self.imagearrays = imagearrays
-		face_pixels = np.array(self.imagearrays)
-		face_pixels = face_pixels.astype('float32')
-		mean, std = face_pixels.mean(), face_pixels.std()
-		face_pixels = (face_pixels - mean) / std
-		return face_pixels
+		"""Compatibility name for shared per-face FaceNet preprocessing."""
+		face_pixels = np.asarray(imagearrays)
+		if face_pixels.ndim == 3:
+			return preprocess_face(face_pixels)
+		if face_pixels.ndim != 4:
+			raise ValueError("Expected one image or a collection of face images.")
+		return np.asarray([preprocess_face(face) for face in face_pixels])
 
 
 

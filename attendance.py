@@ -34,20 +34,52 @@ import json
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.models import model_from_json
 import tensorflow as tf
-root_dir = os.getcwd()
+from config import (
+    CAMERA_INDEX,
+    DATASET_DIR,
+    DATABASE_CONFIG,
+    EMBEDDINGS_PATH,
+    FACENET_WEIGHTS_PATH,
+    FACE_CASCADE_PATH,
+    LIVENESS_MODEL_JSON_PATH,
+    LIVENESS_MODEL_WEIGHTS_PATH,
+    PHOTOS_DIR,
+    PROJECT_ROOT,
+    RECOGNIZER_PATH,
+    missing_startup_assets,
+)
+
+root_dir = str(PROJECT_ROOT)
+
+
+def project_photo(name):
+    return str(PHOTOS_DIR / name)
+
+
+def get_db_connection():
+    return pymysql.connect(**DATABASE_CONFIG)
+
+
+missing_assets = missing_startup_assets()
+if missing_assets:
+    print("Startup blocked: the following required model/UI files are missing:")
+    for path in missing_assets:
+        print(" - {}".format(path))
+    print("See PROJECT_STATUS.md for the required original assets.")
+    sys.exit(1)
 
 try:
-    embedding_obj = Extract_Embeddings(model_path = 'models/facenet_keras.h5')
+    embedding_obj = Extract_Embeddings(model_path=str(FACENET_WEIGHTS_PATH))
     embedding_model = embedding_obj.load_model()
-    face_cascade = cv2.CascadeClassifier("models/haarcascade_frontalface_default.xml")
+    face_cascade = cv2.CascadeClassifier(str(FACE_CASCADE_PATH))
 
 
-    json_file = open('antispoofing_models/finalyearproject_antispoofing_model_mobilenet.json','r')
+    json_file = open(LIVENESS_MODEL_JSON_PATH, 'r')
     loaded_model_json = json_file.read()
     json_file.close()
     liveness_model = model_from_json(loaded_model_json)
 
-    liveness_model.load_weights('antispoofing_models/finalyearproject_antispoofing_model_74-0.986316.h5')
+    liveness_model.load_weights(LIVENESS_MODEL_WEIGHTS_PATH)
     print("Liveness Model loaded successfully from disk")
 
 except cv2.error as e:
@@ -60,7 +92,7 @@ except Exception as e:
 face = Tk()
 face.title("Login")
 face.geometry("1350x700+0+0")
-face.iconbitmap("Photos/new.ico")
+face.iconbitmap(project_photo("new.ico"))
 
 username_var = StringVar()
 password_var = StringVar()
@@ -72,7 +104,7 @@ def login():
         messagebox.showerror('Error','All the fields are required', parent = face)
     else:
         try:
-            conn = pymysql.connect(host = 'localhost', user = 'root', password = '', database = 'recognition')
+            conn = get_db_connection()
             curr = conn.cursor()
             curr.execute('select * from login where username = %s and password = %s',(username_var.get(), password_var.get()))
             row = curr.fetchone()
@@ -83,12 +115,12 @@ def login():
                 face.destroy()
                 def manage_employee():
                     try:
-                        conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+                        conn = get_db_connection()
                         cur = conn.cursor()
                         first = Toplevel()
-                        first.iconbitmap("Photos/new.ico")
+                        first.iconbitmap(project_photo("new.ico"))
                         first.geometry("1350x700+0+0")
-                        bg_photo = PhotoImage(file = "Photos/back.png", master = first)
+                        bg_photo = PhotoImage(file=project_photo("back.png"), master=first)
                         background_pic = Label(first, image = bg_photo)
                         background_pic.pack()
                         first.title("Manage Student")
@@ -113,12 +145,12 @@ def login():
                         search_from = StringVar()
                         search_result = StringVar()
                         mydata = []
-                        dataset_dir = os.path.join(root_dir,'dataset')
+                        dataset_dir = str(DATASET_DIR)
 
 
 
                         def add_employee():
-                            conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+                            conn = get_db_connection()
                             
                             if post_var.get() == "" or fname_var.get() == "" or gender_var.get() ==  "" or contact_var.get() == "" or address_var.get() == "":
                                 messagebox.showerror("Error","All fields are Required", parent = first)
@@ -136,7 +168,7 @@ def login():
                                                     os.makedirs(input_directory, exist_ok = 'True')
                                                     count = 1
                                                     print("[INFO] starting video stream...")
-                                                    video_capture = cv2.VideoCapture(0)
+                                                    video_capture = cv2.VideoCapture(CAMERA_INDEX)
                                                     while count <= 50:
                                                         try:
                                                             check, frame = video_capture.read()
@@ -195,7 +227,7 @@ def login():
 
 
                         def display():
-                            conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+                            conn = get_db_connection()
                             cur = conn.cursor()
                             cur.execute("select * from attendance")
                             data = cur.fetchall()
@@ -230,7 +262,7 @@ def login():
                                 
 
                         def update():
-                            conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+                            conn = get_db_connection()
                             cur = conn.cursor()
                             if post_var.get() == "" or fname_var.get() == "" or gender_var.get() ==  "" or contact_var.get() == "" or address_var.get() == "":
                                 messagebox.showerror("Error","All fields are Required", parent = first)
@@ -257,7 +289,7 @@ def login():
                                                         os.mkdir(output_directory)
                                                         count = 1
                                                         print("[INFO] starting video stream...")
-                                                        video_capture = cv2.VideoCapture(0)
+                                                        video_capture = cv2.VideoCapture(CAMERA_INDEX)
                                                         while count <= 50:
                                                             try:
                                                                 check, frame = video_capture.read()
@@ -327,7 +359,7 @@ def login():
 
 
                         def delete():
-                            conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+                            conn = get_db_connection()
                             cur = conn.cursor()
                             if post_var.get() == "" or fname_var.get() == "" or gender_var.get() ==  "" or contact_var.get() == "" or address_var.get() == "":
                                 messagebox.showerror("Error","All fields are Required", parent = first)
@@ -349,7 +381,7 @@ def login():
                                 
 
                         def search_data():
-                            conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+                            conn = get_db_connection()
                             cur = conn.cursor()
                             cur.execute("select * from attendance where " + str(search_from.get()) + " LIKE '%" + str(search_result.get()) + "%'")
                             data = cur.fetchall()
@@ -441,13 +473,13 @@ def login():
                         second = Toplevel()
                         second.title("Train The System")
                         second.geometry("1400x700+0+0")
-                        second.iconbitmap("Photos/Hopstarter-Soft-Scraps-User-Group.ico")
-                        img3= PhotoImage(file = "Photos/back.png", master = second)
+                        second.iconbitmap(project_photo("Hopstarter-Soft-Scraps-User-Group.ico"))
+                        img3= PhotoImage(file=project_photo("back.png"), master=second)
                         backgrd = Label(second, image = img3)
                         backgrd.pack()
                         train_title = Label(second, text = "Train the System", fg = 'white', font = ("times new roman", 20, "bold"), bg = "black")
                         train_title.place(x = 0,y = 0, relwidth = 1)
-                        img4 = PhotoImage(file = "Photos/face.png")
+                        img4 = PhotoImage(file=project_photo("face.png"))
                         train_img2 = Label(second, image = img4)
                         train_img2.place(x = 420, y = 150)
                         def back():
@@ -456,10 +488,10 @@ def login():
                         def progress():
                             progress_bar.start(5)
                             try:
-                                training_obj = Training(embedding_path='models/embeddings.pickle')
+                                training_obj = Training(embedding_path=str(EMBEDDINGS_PATH))
                                 [label,labels,Embeddings,ids] = training_obj.load_embeddings_and_labels()
                                 recognizer = training_obj.create_svm_model(labels=labels,embeddings=Embeddings)
-                                f1 = open('models/recognizer.pickle', "wb")
+                                f1 = open(RECOGNIZER_PATH, "wb")
                                 f1.write(pickle.dumps(recognizer))
                                 f1.close()
                                 messagebox.showinfo("Success", "Training Done Successfully.. New pickle file created to store Face Recognition Model", parent = attendance)
@@ -495,16 +527,28 @@ def login():
                             return key
 
                 def face_recognize():
-                    embeddings_model_file = os.path.join(root_dir,"models/embeddings.pickle")
-                    recognizer_model_file = os.path.join(root_dir,"models/recognizer.pickle")
+                    embeddings_model_file = str(EMBEDDINGS_PATH)
+                    recognizer_model_file = str(RECOGNIZER_PATH)
                     predictions = []
                     liveness_predictor = []
-                    if os.path.exists(embeddings_model_file and recognizer_model_file): 
-                        training_obj = Training(embedding_path='models/embeddings.pickle')
+                    if not os.path.exists(embeddings_model_file):
+                        messagebox.showerror(
+                            "Error",
+                            "Embeddings file is missing. Run Feature Extraction before taking attendance.",
+                        )
+                        return
+                    if not os.path.exists(recognizer_model_file):
+                        messagebox.showerror(
+                            "Error",
+                            "Recognizer file is missing. Run Train Images after Feature Extraction.",
+                        )
+                        return
+                    if os.path.exists(embeddings_model_file) and os.path.exists(recognizer_model_file):
+                        training_obj = Training(embedding_path=embeddings_model_file)
                         [label,labels,Embeddings,ids] = training_obj.load_embeddings_and_labels()
                         staff_details = embedding_obj.get_staff_details()
-                        recognizer = pickle.loads(open('models/recognizer.pickle', "rb").read())
-                        vs = cv2.VideoCapture(0)
+                        recognizer = pickle.loads(open(recognizer_model_file, "rb").read())
+                        vs = cv2.VideoCapture(CAMERA_INDEX)
                         print("[INFO] starting video stream...")
                         while len(predictions) <= 10:
                             try:
@@ -516,8 +560,8 @@ def login():
                                     resized_face = cv2.resize(face,(160,160))
                                     face_pixel = embedding_obj.normalize_pixels(imagearrays=resized_face)
                                     sample = np.expand_dims(face_pixel,axis=0)
-                                    embedding = embedding_model.predict(sample)
-                                    embedding = embedding.reshape(1,-1)   
+                                    embedding = embedding_obj.get_embedding(embedding_model, face_pixel)
+                                    embedding = embedding.reshape(1, -1)
                                     COLORS = np.random.randint(0, 255, size=(len(label.classes_), 3), dtype="uint8")
                                     # perform classification to recognize the face
                                     preds = recognizer.predict_proba(embedding)[0]
@@ -588,7 +632,7 @@ def login():
                     account = Toplevel()
                     account.geometry('500x450+200+200')
                     account.title('Admin Account')
-                    account.iconbitmap('Photos/new.ico')
+                    account.iconbitmap(project_photo("new.ico"))
                     account.focus_force()
                     account.grab_set()
                     account_frame = Frame(account, bg = 'white', height = 480, width = 500)
@@ -601,13 +645,13 @@ def login():
                     oldpass_var = StringVar()
                     newuser_var = StringVar()
                     newpass_var = StringVar()
-                    logo_icon = PhotoImage(file = 'Photos/adminl.png',master = account)
+                    logo_icon = PhotoImage(file=project_photo("adminl.png"), master=account)
                     admin_logo = Label(account_frame, image= logo_icon, bg = 'white').place( y = 70, relwidth = 1)
-                    pass_icon = PhotoImage(file = 'Photos/password.png', master = account)
+                    pass_icon = PhotoImage(file=project_photo("password.png"), master=account)
                     pass_logo = Label(account_frame, image = pass_icon).place(x = 7, y = 200)
                     pass_label = Label(account_frame, text = 'Old Password', font = ('times new roman', 14, 'bold')).place(x = 55, y = 215)
                     pass_entry = Entry(account_frame, show  = '*', font = ('times new roman', 14, 'bold'), textvariable = oldpass_var).place(x = 210, y = 215)
-                    user_icon = PhotoImage(file = 'Photos/profile.png', master = account)
+                    user_icon = PhotoImage(file=project_photo("profile.png"), master=account)
                     user_logo = Label(account_frame, image = user_icon).place(x = 7, y = 265)
                     user_label = Label(account_frame, text = 'New Username', font = ('times new roman', 14, 'bold')).place(x = 55, y = 275)
                     user_entry = Entry(account_frame, font = ('times new roman', 14, 'bold'), textvariable = newuser_var).place(x = 210, y = 275)
@@ -621,7 +665,7 @@ def login():
                         if oldpass_var.get() == "" or newuser_var.get() == "" or newpass_var.get() == "" :
                             messagebox.showerror('Error',' All fields are Required', parent = account)
                         else:
-                            conn = pymysql.connect(host = 'localhost', user = 'root', password = '', database = 'recognition')
+                            conn = get_db_connection()
                             cur = conn.cursor()
                             cur.execute('select * from login where password = %s',(oldpass_var.get()))
                             row = cur.fetchone()
@@ -644,7 +688,7 @@ def login():
                     report = Toplevel()
                     report.geometry("1400x700+0+0")
                     report.title("Attendance Report")
-                    report.iconbitmap("Photos/new.ico")
+                    report.iconbitmap(project_photo("new.ico"))
                     report.config(bg = "white")
                     title = Frame(report, bg = "white", bd = "3", relief = SUNKEN )
                     title.pack(fill = BOTH)
@@ -668,7 +712,7 @@ def login():
 
                  
                     def show_data():
-                        conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+                        conn = get_db_connection()
                         cur = conn.cursor()
                         cur.execute("select * from report")
                         data = cur.fetchall()
@@ -683,7 +727,7 @@ def login():
 
 
                     def delete_data():
-                        conn = pymysql.connect(host = 'localhost', user = 'root', password = '', database = 'recognition')
+                        conn = get_db_connection()
                         cur = conn.cursor()
                         selected_item = report_table.selection()[0]
                         uid = report_table.item(selected_item)['values'][0]
@@ -696,7 +740,7 @@ def login():
                     
                     
                     def search_data():
-                        conn = pymysql.connect(host = "localhost", user = "root", password = "", database = "recognition")
+                        conn = get_db_connection()
                         cur = conn.cursor()
                     
                         cur.execute("select * from report where " + str(search_by.get()) + " LIKE '%" + str(search_text.get()) + "%'")
@@ -782,17 +826,17 @@ def login():
                     fe = Toplevel()
                     fe.title("Extract Embeddings")
                     fe.geometry("1400x700+0+0")
-                    fe.iconbitmap("Photos/Hopstarter-Soft-Scraps-User-Group.ico")
-                    img1= PhotoImage(file = "Photos/back.png", master = fe)
+                    fe.iconbitmap(project_photo("Hopstarter-Soft-Scraps-User-Group.ico"))
+                    img1= PhotoImage(file=project_photo("back.png"), master=fe)
                     backgrd = Label(fe, image = img1)
                     backgrd.pack()
                     embed_title = Label(fe, text = "Feature Extraction",font = ("times new roman", 30, "bold"), bg = "brown")
                     embed_title.place(x = 0,y = 0, relwidth = 1)
-                    img2 = PhotoImage(file = "Photos/face.png")
+                    img2 = PhotoImage(file=project_photo("face.png"))
                     embed_img2 = Label(fe, image = img2)
                     embed_img2.place(x = 420, y =150)
                     staff_details = embedding_obj.get_staff_details()
-                    embeddings_model_file = os.path.join(root_dir,"models/embeddings.pickle")
+                    embeddings_model_file = str(EMBEDDINGS_PATH)
                     if not os.path.exists(embeddings_model_file):
                         [image_ids,image_paths,image_arrays,names,face_ids] = embedding_obj.get_all_face_pixels(staff_details)
                         face_pixels = embedding_obj.normalize_pixels(imagearrays = image_arrays)
@@ -804,12 +848,10 @@ def login():
                                 text.set(str(j)+"/"+str(l)+"tasks completed")
                                 pgbar["value"] = j
                                 fe.update()
-                                sample = np.expand_dims(face_pixel,axis=0)
-                                embedding = embedding_model.predict(sample)
-                                new_embedding = embedding.reshape(-1)
+                                new_embedding = embedding_obj.get_embedding(embedding_model, face_pixel)
                                 embeddings.append(new_embedding)
                                 data = {"paths":image_paths, "names":names,"face_ids":face_ids, "imageIDs":image_ids,"embeddings":embeddings}
-                            f = open('models/embeddings.pickle' , "wb")
+                            f = open(EMBEDDINGS_PATH, "wb")
                             f.write(pickle.dumps(data))
                             f.close()
                             fe.after(1000,fe.destroy)
@@ -844,9 +886,7 @@ def login():
                                     text.set(str(j)+"/"+str(l)+"tasks completed")
                                     pgbar["value"] = j
                                     fe.update()
-                                    sample = np.expand_dims(face_pixel,axis=0)
-                                    embedding = embedding_model.predict(sample)
-                                    new_embedding = embedding.reshape(-1)
+                                    new_embedding = embedding_obj.get_embedding(embedding_model, face_pixel)
                                     embeddings.append(new_embedding)
                                 new_data = {"paths":image_paths, "names":names,"face_ids":face_ids, "imageIDs":image_ids,"embeddings":embeddings}
                                 combined_data = {"paths":[],"names":[],"face_ids":[],"imageIDs":[],"embeddings":[]}
@@ -856,7 +896,7 @@ def login():
                                 combined_data["imageIDs"] = old_data["imageIDs"] + new_data["imageIDs"]
                                 combined_data["embeddings"] = old_data["embeddings"] + new_data["embeddings"]
 
-                                f = open('models/embeddings.pickle' , "wb")
+                                f = open(EMBEDDINGS_PATH, "wb")
                                 f.write(pickle.dumps(combined_data))
                                 f.close()
                                 fe.after(1000,fe.destroy)
@@ -884,9 +924,9 @@ def login():
 
                 attendance = Tk()
                 attendance.title("Attendance Management")
-                attendance.iconbitmap("Photos/new.ico")
+                attendance.iconbitmap(project_photo("new.ico"))
                 attendance.geometry("1350x700+0+0")
-                bg_image = PhotoImage(file = "Photos/back.png", master = attendance)
+                bg_image = PhotoImage(file=project_photo("back.png"), master=attendance)
                 background_photo = Label(attendance, image = bg_image)
                 background_photo.pack()
                 manage_text = 'Attendance Management'
@@ -917,31 +957,31 @@ def login():
 
      
 
-                photo1 = PhotoImage(file = "Photos/ma.png", master = attendance)
+                photo1 = PhotoImage(file=project_photo("ma.png"), master=attendance)
                 B1 = Button(attendance, image = photo1, text = "Student Management",font = ("Times New Roman" , 15), fg = "black", height =230, width = 265, command = manage_employee, compound = BOTTOM )
                 B1.place(x = 20, y = 100)
 
-                photo2 = PhotoImage(file = "Photos/fa.png",  master = attendance)
+                photo2 = PhotoImage(file=project_photo("fa.png"), master=attendance)
                 B2 = Button(attendance, image = photo2 , text = "Take Attendance", font = ("Times new roman", 15), fg = "black", height = 230, width= 265, command = face_recognize, compound = BOTTOM )
                 B2.place(x = 20, y = 400)
 
 
      
 
-                photo6 = PhotoImage(file = "Photos/fe.png", master = attendance)
+                photo6 = PhotoImage(file=project_photo("fe.png"), master=attendance)
                 B6 = Button(attendance, text = "Feature Extraction", fg = "black", font = ("Times new Roman", 15), image = photo6, height = 230, width = 265,command= face_embedding, compound = BOTTOM)
                 B6.place(x = 360, y =100)
 
 
 
-                photo3 = PhotoImage(file = "Photos/tr.png",  master = attendance)
+                photo3 = PhotoImage(file=project_photo("tr.png"), master=attendance)
                 B3 =  Button(attendance , image = photo3 , text = "Train Images" , font = ("Times new roman", 15), fg = "black" , height = 230, width= 265, command = train , compound = BOTTOM )
                 B3.place(x = 700, y = 100)
 
       
 
 
-                photo5 = PhotoImage(file = "Photos/Att.png" ,  master = attendance)
+                photo5 = PhotoImage(file=project_photo("Att.png"), master=attendance)
                 B5 = Button(attendance, text = "Attendance Reports", fg = "black", font = ("Times new roman", 15), image = photo5, height = 230, width = 265, command = report, compound = BOTTOM)
                 B5.place(x = 360, y = 400)
 
@@ -964,7 +1004,7 @@ def tick():
 
 
 
-bg_icon = PhotoImage(file = "Photos/back.png", master = face)
+bg_icon = PhotoImage(file=project_photo("back.png"), master=face)
 background_image = Label(face, image = bg_icon)
 background_image.pack()
 
@@ -976,11 +1016,11 @@ title.place(x = 0, y = 0, relwidth = 1)
 login_frame= Frame(face, bg = "white" )
 login_frame.place(x = 400, y = 200)
 
-logo_icon = PhotoImage(file = "Photos/adminl.png", master= login_frame)
+logo_icon = PhotoImage(file=project_photo("adminl.png"), master=login_frame)
 logo_image = Label(login_frame, image = logo_icon, bd = 0 ).grid( row = 0, columnspan = 3 , pady = 40, padx= 40)
 
-user_icon = PhotoImage(file = "Photos/profile.png", master = login_frame)
-password_icon = PhotoImage(file = "Photos/password.png", master = login_frame)
+user_icon = PhotoImage(file=project_photo("profile.png"), master=login_frame)
+password_icon = PhotoImage(file=project_photo("password.png"), master=login_frame)
 
 user_label = Label(login_frame , text = "Username", image = user_icon, bg= "white", compound = LEFT, font = ("times new roman", 15, "bold")).grid( row  = 1 , column = 0, padx = 30, pady = 5)
 user_entry = Entry(login_frame, font = ("times new roman", 15, "bold"), relief = GROOVE, textvariable = username_var, bg = "lightgray").grid(row = 1, column= 1, padx= 10, pady = 5)
@@ -991,4 +1031,4 @@ password_entry = Entry(login_frame, show = "*", font = ("times new roman", 15,"b
 
 
 submit_btn = Button(login_frame, text = "Log In",width = 10, activebackground = "blue", activeforeground = "white", command = login , font = ("times new roman", 20, "bold"),relief = GROOVE, bg = "cyan").grid(row = 3, column = 1, pady =25, padx = 25) 
-face.mainloop()            
+face.mainloop()
